@@ -1,0 +1,41 @@
+# =========================
+# Global ignores
+# =========================
+.DS_Store
+*.log
+.env
+.env.local
+*.pyc
+__pycache__/
+
+# =========================
+# Python / Django (server)
+# =========================
+server/venv/
+server/__pycache__/
+server/*.pyc
+server/*.sqlite3
+*.egg-info
+*.eggs/
+*.coverage
+.coverage.*
+db.sqlite3
+media/
+staticfiles/
+
+# =========================
+# Node / Next.js (client)
+# =========================
+client/node_modules/
+client/.next/
+client/.turbo/
+client/.swc/
+client/out/
+client/.vercel/
+
+# =========================
+# Editor & OS
+# =========================
+.vscode/
+.idea/
+Thumbs.db

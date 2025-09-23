@@ -39,3 +39,8 @@ client/.vercel/
 .vscode/
 .idea/
 Thumbs.db
+
+# Project specific
+run.py
+output.txt
+

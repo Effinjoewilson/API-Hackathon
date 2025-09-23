@@ -1,14 +1,80 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { LogOut, Home, Info, Bell, Settings } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function Navbar() {
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/accounts/check-auth/`, {
+      credentials: "include",
+    })
+      .then((res) => {
+        if (res.ok) {
+          setIsAuthenticated(true);
+        }
+      })
+      .catch(() => {
+        setIsAuthenticated(false);
+      });
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/accounts/logout/`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("Logout failed", err);
+    } finally {
+      router.push("/login");
+    }
+  };
+
   return (
-    <nav className="w-full bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
-      <h1 className="text-xl font-bold">API Hackathon</h1>
-      <div className="space-x-4">
-        <Link href="/" className="hover:text-blue-400">Home</Link>
-        <Link href="/about" className="hover:text-blue-400">About</Link>
-        <Link href="/contact" className="hover:text-blue-400">Contact</Link>
+    <nav className="bg-white border-b border-slate-200 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex items-center">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-indigo-500 bg-clip-text text-transparent">
+              EndpointX
+            </h1>
+            
+            <div className="hidden md:flex items-center space-x-1 ml-10">
+              <Link href="/" className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:text-indigo-600 hover:bg-slate-50 transition-colors">
+                <Home className="w-4 h-4 mr-2" />
+                Dashboard
+              </Link>
+              <Link href="/about" className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:text-indigo-600 hover:bg-slate-50 transition-colors">
+                <Info className="w-4 h-4 mr-2" />
+                About
+              </Link>
+            </div>
+          </div>
+
+          {isAuthenticated && (
+            <div className="flex items-center space-x-3">
+              <button className="p-2 rounded-lg text-slate-600 hover:text-indigo-600 hover:bg-slate-50 transition-colors">
+                <Bell className="w-5 h-5" />
+              </button>
+              <button className="p-2 rounded-lg text-slate-600 hover:text-indigo-600 hover:bg-slate-50 transition-colors">
+                <Settings className="w-5 h-5" />
+              </button>
+              <div className="w-px h-6 bg-slate-200" />
+              <button
+                onClick={handleLogout}
+                className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </nav>
   );

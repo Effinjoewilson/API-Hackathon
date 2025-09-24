@@ -32,6 +32,15 @@ python manage.py runserver
 Django server will run at: http://127.0.0.1:8000/
 
 
+Now create a .env file in server and include:
+    POSTGRES_DB=hackathon_db
+    POSTGRES_USER=postgres
+    POSTGRES_PASSWORD=
+    POSTGRES_HOST=localhost
+    POSTGRES_PORT=5432
+    SECRET_KEY=
+
+
 ---
 
 
@@ -46,3 +55,7 @@ npm install
 npm run dev
 
 Next.js app will run at: http://localhost:3000/
+
+Now create a .env file in client and include:
+
+    NEXT_PUBLIC_API_URL=http://localhost:8000/api

@@ -1,4 +1,8 @@
+"use client";
+import { useRouter } from "next/navigation";
+
 export default function Home() {
+  const router = useRouter();
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -86,7 +90,10 @@ export default function Home() {
             <p className="text-slate-600 mb-4">
               Configure and manage your API endpoints with authentication and rate limiting
             </p>
-            <button className="btn-primary w-full">
+            <button
+              onClick={() => router.push("/apis")}
+              className="btn-primary w-full"
+            >
               Manage APIs
             </button>
           </div>

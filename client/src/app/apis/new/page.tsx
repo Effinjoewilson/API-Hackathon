@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, AlertCircle } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 interface FormData {
@@ -15,6 +15,8 @@ interface FormData {
   headers: { [key: string]: string };
   query_params: { [key: string]: string };
   body_schema: any;
+  body_template: any;
+  content_type: string;
   category: string;
   tags: string[];
   is_active: boolean;
@@ -24,7 +26,7 @@ export default function NewAPIPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<any>({});
-  
+
   const [formData, setFormData] = useState<FormData>({
     name: "",
     description: "",
@@ -36,6 +38,8 @@ export default function NewAPIPage() {
     headers: {},
     query_params: {},
     body_schema: {},
+    body_template: {},
+    content_type: "application/json",
     category: "",
     tags: [],
     is_active: true,
@@ -44,6 +48,29 @@ export default function NewAPIPage() {
   const [newHeader, setNewHeader] = useState({ key: "", value: "" });
   const [newParam, setNewParam] = useState({ key: "", value: "" });
   const [newTag, setNewTag] = useState("");
+  const [bodyTemplateString, setBodyTemplateString] = useState("");
+
+  const validateJSON = (str: string): boolean => {
+    try {
+      JSON.parse(str);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleBodyTemplateChange = (value: string) => {
+    setBodyTemplateString(value);
+    if (value.trim() === "") {
+      setFormData(prev => ({ ...prev, body_template: {} }));
+    } else if (validateJSON(value)) {
+      try {
+        setFormData(prev => ({ ...prev, body_template: JSON.parse(value) }));
+      } catch {
+        // Invalid JSON, don't update
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,7 +182,7 @@ export default function NewAPIPage() {
           {/* Basic Information */}
           <div className="card p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-4">Basic Information</h2>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -227,7 +254,7 @@ export default function NewAPIPage() {
           {/* Endpoint Configuration */}
           <div className="card p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-4">Endpoint Configuration</h2>
-            
+
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -304,7 +331,7 @@ export default function NewAPIPage() {
           {formData.auth_type !== "none" && (
             <div className="card p-6">
               <h2 className="text-lg font-semibold text-slate-900 mb-4">Authentication Credentials</h2>
-              
+
               {formData.auth_type === "api_key" && (
                 <div className="space-y-4">
                   <div>
@@ -366,10 +393,62 @@ export default function NewAPIPage() {
             </div>
           )}
 
+          {/* Request Body Template - Show only for POST, PUT, PATCH */}
+          {(formData.http_method === "POST" || formData.http_method === "PUT" || formData.http_method === "PATCH") && (
+            <div className="card p-6">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4">Request Body Template</h2>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Content Type
+                  </label>
+                  <select
+                    name="content_type"
+                    value={formData.content_type}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="application/json">JSON</option>
+                    <option value="application/x-www-form-urlencoded">Form Data</option>
+                    <option value="multipart/form-data">Multipart</option>
+                    <option value="application/xml">XML</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Body Template
+                  </label>
+                  <div className="relative">
+                    <textarea
+                      value={bodyTemplateString}
+                      onChange={(e) => handleBodyTemplateChange(e.target.value)}
+                      className="w-full h-48 px-4 py-3 border border-slate-200 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder={`
+                        {
+                          "name": "Effin joe",
+                          "email": "effin.joe@gmail.com",
+                          "age": 30
+                        }
+                      `}
+                    />
+                    {bodyTemplateString && !validateJSON(bodyTemplateString) && (
+                      <p className="absolute -bottom-6 left-0 text-sm text-red-600">Invalid JSON format</p>
+                    )}
+                  </div>
+                  <p className="mt-8 text-sm text-slate-500">
+                    This template will be used as the default request body when testing the API
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Headers */}
           <div className="card p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-4">Headers</h2>
-            
+
             <div className="space-y-3">
               {Object.entries(formData.headers).map(([key, value]) => (
                 <div key={key} className="flex items-center space-x-2">
@@ -394,7 +473,7 @@ export default function NewAPIPage() {
                   </button>
                 </div>
               ))}
-              
+
               <div className="flex items-center space-x-2">
                 <input
                   type="text"
@@ -424,7 +503,7 @@ export default function NewAPIPage() {
           {/* Query Parameters */}
           <div className="card p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-4">Query Parameters</h2>
-            
+
             <div className="space-y-3">
               {Object.entries(formData.query_params).map(([key, value]) => (
                 <div key={key} className="flex items-center space-x-2">
@@ -449,7 +528,7 @@ export default function NewAPIPage() {
                   </button>
                 </div>
               ))}
-              
+
               <div className="flex items-center space-x-2">
                 <input
                   type="text"
@@ -479,7 +558,7 @@ export default function NewAPIPage() {
           {/* Tags */}
           <div className="card p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-4">Tags</h2>
-            
+
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2 mb-3">
                 {formData.tags.map((tag) => (
@@ -498,7 +577,7 @@ export default function NewAPIPage() {
                   </span>
                 ))}
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <input
                   type="text"

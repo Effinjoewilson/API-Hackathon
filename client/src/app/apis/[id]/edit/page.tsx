@@ -15,6 +15,8 @@ interface FormData {
   headers: { [key: string]: string };
   query_params: { [key: string]: string };
   body_schema: any;
+  body_template: any;
+  content_type: string;
   category: string;
   tags: string[];
   is_active: boolean;
@@ -40,6 +42,8 @@ export default function EditAPIPage() {
     headers: {},
     query_params: {},
     body_schema: {},
+    body_template: {},
+    content_type: "application/json",
     category: "",
     tags: [],
     is_active: true,
@@ -48,6 +52,7 @@ export default function EditAPIPage() {
   const [newHeader, setNewHeader] = useState({ key: "", value: "" });
   const [newParam, setNewParam] = useState({ key: "", value: "" });
   const [newTag, setNewTag] = useState("");
+  const [bodyTemplateString, setBodyTemplateString] = useState("");
 
   // Fetch existing API data
   useEffect(() => {
@@ -70,15 +75,44 @@ export default function EditAPIPage() {
           headers: data.headers || {},
           query_params: data.query_params || {},
           body_schema: data.body_schema || {},
+          body_template: data.body_template || {},
+          content_type: data.content_type || "application/json",
           category: data.category || "",
           tags: data.tags || [],
           is_active: data.is_active ?? true,
         });
+
+        // Set body template string
+        if (data.body_template && Object.keys(data.body_template).length > 0) {
+          setBodyTemplateString(JSON.stringify(data.body_template, null, 2));
+        }
       }
     } catch (error) {
       console.error("Failed to fetch API data:", error);
     } finally {
       setFetchingData(false);
+    }
+  };
+
+  const validateJSON = (str: string): boolean => {
+    try {
+      JSON.parse(str);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleBodyTemplateChange = (value: string) => {
+    setBodyTemplateString(value);
+    if (value.trim() === "") {
+      setFormData(prev => ({ ...prev, body_template: {} }));
+    } else if (validateJSON(value)) {
+      try {
+        setFormData(prev => ({ ...prev, body_template: JSON.parse(value) }));
+      } catch {
+        // Invalid JSON, don't update
+      }
     }
   };
 
@@ -411,6 +445,58 @@ export default function EditAPIPage() {
                   />
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Request Body Template - Show only for POST, PUT, PATCH */}
+          {(formData.http_method === "POST" || formData.http_method === "PUT" || formData.http_method === "PATCH") && (
+            <div className="card p-6">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4">Request Body Template</h2>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Content Type
+                  </label>
+                  <select
+                    name="content_type"
+                    value={formData.content_type}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="application/json">JSON</option>
+                    <option value="application/x-www-form-urlencoded">Form Data</option>
+                    <option value="multipart/form-data">Multipart</option>
+                    <option value="application/xml">XML</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Body Template
+                  </label>
+                  <div className="relative">
+                    <textarea
+                      value={bodyTemplateString}
+                      onChange={(e) => handleBodyTemplateChange(e.target.value)}
+                      className="w-full h-48 px-4 py-3 border border-slate-200 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder={`
+                        {
+                          "name": "Effin Joe",
+                          "email": "effin.joe@gmail.com",
+                          "age": 22
+                        }
+                      `}
+                    />
+                    {bodyTemplateString && !validateJSON(bodyTemplateString) && (
+                      <p className="absolute -bottom-6 left-0 text-sm text-red-600">Invalid JSON format</p>
+                    )}
+                  </div>
+                  <p className="mt-8 text-sm text-slate-500">
+                    This template will be used as the default request body when testing the API
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 

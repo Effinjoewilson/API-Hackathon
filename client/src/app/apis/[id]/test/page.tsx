@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Play, Copy, Check, AlertCircle } from "lucide-react";
+import { ArrowLeft, Play, Copy, Check, AlertCircle, RotateCcw, Code } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 interface APIEndpoint {
@@ -11,6 +11,8 @@ interface APIEndpoint {
   http_method: string;
   headers: { [key: string]: string };
   query_params: { [key: string]: string };
+  body_template: any;
+  content_type: string;
 }
 
 interface TestLog {
@@ -38,12 +40,20 @@ export default function TestAPIPage() {
   const [testHeaders, setTestHeaders] = useState<{ [key: string]: string }>({});
   const [testParams, setTestParams] = useState<{ [key: string]: string }>({});
   const [testBody, setTestBody] = useState("");
+  const [bodyError, setBodyError] = useState("");
   const [currentResponse, setCurrentResponse] = useState<any>(null);
 
   useEffect(() => {
     fetchAPIData();
     fetchTestHistory();
   }, [id]);
+
+  useEffect(() => {
+    // Load body template when API data is fetched
+    if (api?.body_template && Object.keys(api.body_template).length > 0) {
+      setTestBody(JSON.stringify(api.body_template, null, 2));
+    }
+  }, [api]);
 
   const fetchAPIData = async () => {
     try {
@@ -73,9 +83,38 @@ export default function TestAPIPage() {
     }
   };
 
+  const handleBodyChange = (value: string) => {
+    setTestBody(value);
+    setBodyError("");
+    
+    if (value.trim() && api?.content_type === "application/json") {
+      try {
+        JSON.parse(value);
+      } catch {
+        setBodyError("Invalid JSON format");
+      }
+    }
+  };
+
   const runTest = async () => {
     setTesting(true);
     setCurrentResponse(null);
+
+    // Validate body if required
+    let parsedBody = null;
+    if ((api?.http_method === "POST" || api?.http_method === "PUT" || api?.http_method === "PATCH") && testBody) {
+      if (api.content_type === "application/json") {
+        try {
+          parsedBody = JSON.parse(testBody);
+        } catch {
+          setBodyError("Invalid JSON - cannot send request");
+          setTesting(false);
+          return;
+        }
+      } else {
+        parsedBody = testBody; // Send as-is for other content types
+      }
+    }
 
     try {
       const response = await apiFetch(`/apis/endpoints/${id}/test/`, {
@@ -83,7 +122,7 @@ export default function TestAPIPage() {
         body: JSON.stringify({
           headers: testHeaders,
           params: testParams,
-          body: testBody ? JSON.parse(testBody) : null,
+          body: parsedBody,
         }),
       });
 
@@ -115,6 +154,25 @@ export default function TestAPIPage() {
     if (status >= 400 && status < 500) return "text-yellow-600";
     if (status >= 500) return "text-red-600";
     return "text-gray-600";
+  };
+
+  const resetToTemplate = () => {
+    if (api?.body_template && Object.keys(api.body_template).length > 0) {
+      setTestBody(JSON.stringify(api.body_template, null, 2));
+      setBodyError("");
+    }
+  };
+
+  const formatJSON = () => {
+    if (api?.content_type === 'application/json' && testBody) {
+      try {
+        const parsed = JSON.parse(testBody);
+        setTestBody(JSON.stringify(parsed, null, 2));
+        setBodyError("");
+      } catch {
+        setBodyError("Cannot format - invalid JSON");
+      }
+    }
   };
 
   if (loading || !api) {
@@ -149,7 +207,7 @@ export default function TestAPIPage() {
             </div>
             <button
               onClick={runTest}
-              disabled={testing}
+              disabled={testing || (bodyError !== "")}
               className="btn-primary flex items-center"
             >
               {testing ? (
@@ -176,22 +234,26 @@ export default function TestAPIPage() {
             <div className="card p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">Request Headers</h3>
               <div className="space-y-2">
-                {Object.entries(testHeaders).map(([key, value]) => (
-                  <div key={key} className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={key}
-                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-sm"
-                      disabled
-                    />
-                    <input
-                      type="text"
-                      value={value}
-                      onChange={(e) => setTestHeaders(prev => ({ ...prev, [key]: e.target.value }))}
-                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                ))}
+                {Object.entries(testHeaders).length === 0 ? (
+                  <p className="text-sm text-slate-500">No headers configured</p>
+                ) : (
+                  Object.entries(testHeaders).map(([key, value]) => (
+                    <div key={key} className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={key}
+                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-sm"
+                        disabled
+                      />
+                      <input
+                        type="text"
+                        value={value}
+                        onChange={(e) => setTestHeaders(prev => ({ ...prev, [key]: e.target.value }))}
+                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
@@ -199,35 +261,78 @@ export default function TestAPIPage() {
             <div className="card p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">Query Parameters</h3>
               <div className="space-y-2">
-                {Object.entries(testParams).map(([key, value]) => (
-                  <div key={key} className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={key}
-                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-sm"
-                      disabled
-                    />
-                    <input
-                      type="text"
-                      value={value}
-                      onChange={(e) => setTestParams(prev => ({ ...prev, [key]: e.target.value }))}
-                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                ))}
+                {Object.entries(testParams).length === 0 ? (
+                  <p className="text-sm text-slate-500">No query parameters configured</p>
+                ) : (
+                  Object.entries(testParams).map(([key, value]) => (
+                    <div key={key} className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={key}
+                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-sm"
+                        disabled
+                      />
+                      <input
+                        type="text"
+                        value={value}
+                        onChange={(e) => setTestParams(prev => ({ ...prev, [key]: e.target.value }))}
+                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
             {/* Request Body */}
             {(api.http_method === "POST" || api.http_method === "PUT" || api.http_method === "PATCH") && (
               <div className="card p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Request Body (JSON)</h3>
-                <textarea
-                  value={testBody}
-                  onChange={(e) => setTestBody(e.target.value)}
-                  className="w-full h-32 px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder='{"key": "value"}'
-                />
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">Request Body</h3>
+                  <span className="text-sm text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                    {api.content_type}
+                  </span>
+                </div>
+                
+                <div className="relative">
+                  <textarea
+                    value={testBody}
+                    onChange={(e) => handleBodyChange(e.target.value)}
+                    className={`w-full h-48 px-4 py-3 border ${
+                      bodyError ? 'border-red-300' : 'border-slate-200'
+                    } rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+                    placeholder={api.content_type === 'application/json' ? '{\n  "key": "value"\n}' : 'key=value&key2=value2'}
+                  />
+                  {bodyError && (
+                    <p className="absolute -bottom-6 left-0 text-sm text-red-600 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {bodyError}
+                    </p>
+                  )}
+                </div>
+                
+                <div className="mt-8 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={resetToTemplate}
+                    className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center"
+                    disabled={!api.body_template || Object.keys(api.body_template).length === 0}
+                  >
+                    <RotateCcw className="w-4 h-4 mr-1" />
+                    Reset to template
+                  </button>
+                  
+                  {api.content_type === 'application/json' && (
+                    <button
+                      type="button"
+                      onClick={formatJSON}
+                      className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center"
+                    >
+                      <Code className="w-4 h-4 mr-1" />
+                      Format JSON
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -249,6 +354,7 @@ export default function TestAPIPage() {
                     <button
                       onClick={() => copyToClipboard(JSON.stringify(currentResponse.response_body, null, 2))}
                       className="p-1 text-slate-600 hover:text-indigo-600"
+                      title="Copy response"
                     >
                       {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     </button>
@@ -258,7 +364,7 @@ export default function TestAPIPage() {
                 {currentResponse.error_message ? (
                   <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                     <div className="flex items-center">
-                      <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
+                      <AlertCircle className="w-5 h-5 text-red-600 mr-2 flex-shrink-0" />
                       <p className="text-sm text-red-700">{currentResponse.error_message}</p>
                     </div>
                   </div>

@@ -11,6 +11,10 @@ from .serializers import APIEndpointSerializer, APITestLogSerializer, APITestReq
 class APIEndpointViewSet(viewsets.ModelViewSet):
     serializer_class = APIEndpointSerializer
     permission_classes = [IsAuthenticated]
+
+    '''def create(self, request, *args, **kwargs):
+        print("📩 Raw POST Data:", request.data)   # debug here
+        return super().create(request, *args, **kwargs)'''
     
     def get_queryset(self):
         """Filter APIs by owner and optional query params"""
@@ -46,6 +50,9 @@ class APIEndpointViewSet(viewsets.ModelViewSet):
     def test(self, request, pk=None):
         """Test an API endpoint"""
         api_endpoint = self.get_object()
+        '''serializer = APIEndpointSerializer(api_endpoint)
+        print("🗄️ API data fetched from DB (serialized):")
+        print(serializer.data)'''
         serializer = APITestRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
@@ -56,6 +63,11 @@ class APIEndpointViewSet(viewsets.ModelViewSet):
         headers = {**api_endpoint.headers, **test_data.get('headers', {})}
         params = {**api_endpoint.query_params, **test_data.get('params', {})}
         body = test_data.get('body', None)
+        
+        # Use body template if no body provided and method supports body
+        if api_endpoint.http_method in ['POST', 'PUT', 'PATCH']:
+            if body is None and api_endpoint.body_template:
+                body = api_endpoint.body_template
         
         # Add authentication
         if api_endpoint.auth_type == 'api_key':
@@ -83,14 +95,69 @@ class APIEndpointViewSet(viewsets.ModelViewSet):
         )
         
         try:
-            response = requests.request(
-                method=api_endpoint.http_method,
-                url=url,
-                headers=headers,
-                params=params,
-                json=body if body else None,
-                timeout=30
-            )
+            # Handle different content types
+            if api_endpoint.http_method in ['POST', 'PUT', 'PATCH']:
+                # Set content type header if not already set
+                if 'Content-Type' not in headers:
+                    headers['Content-Type'] = api_endpoint.content_type
+                
+                if api_endpoint.content_type == 'application/json':
+                    response = requests.request(
+                        method=api_endpoint.http_method,
+                        url=url,
+                        headers=headers,
+                        params=params,
+                        json=body,  # Send as JSON
+                        timeout=30
+                    )
+                elif api_endpoint.content_type == 'application/x-www-form-urlencoded':
+                    response = requests.request(
+                        method=api_endpoint.http_method,
+                        url=url,
+                        headers=headers,
+                        params=params,
+                        data=body,  # Send as form data
+                        timeout=30
+                    )
+                elif api_endpoint.content_type == 'multipart/form-data':
+                    # Remove Content-Type header for multipart (requests will set it with boundary)
+                    headers.pop('Content-Type', None)
+                    response = requests.request(
+                        method=api_endpoint.http_method,
+                        url=url,
+                        headers=headers,
+                        params=params,
+                        files=body if isinstance(body, dict) else None,
+                        timeout=30
+                    )
+                elif api_endpoint.content_type == 'application/xml':
+                    response = requests.request(
+                        method=api_endpoint.http_method,
+                        url=url,
+                        headers=headers,
+                        params=params,
+                        data=body if isinstance(body, str) else str(body),
+                        timeout=30
+                    )
+                else:
+                    # Default to sending as data
+                    response = requests.request(
+                        method=api_endpoint.http_method,
+                        url=url,
+                        headers=headers,
+                        params=params,
+                        data=body,
+                        timeout=30
+                    )
+            else:
+                # GET, DELETE, etc. - no body
+                response = requests.request(
+                    method=api_endpoint.http_method,
+                    url=url,
+                    headers=headers,
+                    params=params,
+                    timeout=30
+                )
             
             response_time_ms = int((time.time() - start_time) * 1000)
             
@@ -99,6 +166,11 @@ class APIEndpointViewSet(viewsets.ModelViewSet):
                 response_body = response.json()
             except:
                 response_body = {"text": response.text}
+
+            '''print("📤 Response received from external API:")
+            print(f"Status Code: {response.status_code}")
+            print(f"Headers: {dict(response.headers)}")
+            print(f"Body: {response_body}")'''        
             
             test_log.response_status = response.status_code
             test_log.response_headers = dict(response.headers)

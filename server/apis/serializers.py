@@ -10,10 +10,10 @@ class APIEndpointSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'base_url', 'endpoint_path',
             'http_method', 'auth_type', 'auth_credentials', 'headers',
-            'query_params', 'body_schema', 'expected_response_format',
-            'response_schema', 'owner', 'owner_username', 'created_at',
-            'updated_at', 'is_active', 'category', 'tags', 'version',
-            'full_url'
+            'query_params', 'body_schema', 'body_template', 'content_type',
+            'expected_response_format', 'response_schema', 'owner',
+            'owner_username', 'created_at', 'updated_at', 'is_active',
+            'category', 'tags', 'version', 'full_url'
         ]
         read_only_fields = ['owner', 'created_at', 'updated_at']
     

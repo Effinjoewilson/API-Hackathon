@@ -19,6 +19,13 @@ class APIEndpoint(models.Model):
         ('DELETE', 'DELETE'),
     ]
     
+    CONTENT_TYPES = [
+        ('application/json', 'JSON'),
+        ('application/x-www-form-urlencoded', 'Form Data'),
+        ('multipart/form-data', 'Multipart'),
+        ('application/xml', 'XML'),
+    ]
+    
     # Basic Information
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
@@ -34,6 +41,12 @@ class APIEndpoint(models.Model):
     headers = models.JSONField(default=dict, blank=True)
     query_params = models.JSONField(default=dict, blank=True)
     body_schema = models.JSONField(default=dict, blank=True)  # For POST/PUT requests
+    body_template = models.JSONField(default=dict, blank=True, help_text="Template for request body")
+    content_type = models.CharField(
+        max_length=50, 
+        default='application/json',
+        choices=CONTENT_TYPES
+    )
     
     # Response Configuration
     expected_response_format = models.CharField(max_length=20, default='json')

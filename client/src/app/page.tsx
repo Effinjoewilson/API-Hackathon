@@ -111,7 +111,10 @@ export default function Home() {
             <p className="text-slate-600 mb-4">
               Connect multiple databases with secure credential management
             </p>
-            <button className="btn-primary w-full">
+            <button
+              onClick={() => router.push("/databases")}
+              className="btn-primary w-full"
+            >
               Add Database
             </button>
           </div>

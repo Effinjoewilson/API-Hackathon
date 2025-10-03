@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Home, Info, Bell, Settings } from "lucide-react";
+import { LogOut, Home, Info, Bell, Settings, Database } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function Navbar() {
@@ -58,6 +58,10 @@ export default function Navbar() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
                 APIs
+              </Link>
+              <Link href="/databases" className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:text-indigo-600 hover:bg-slate-50 transition-colors">
+                <Database className="w-4 h-4 mr-2" />
+                Databases
               </Link>
             </div>
           </div>

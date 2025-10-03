@@ -40,6 +40,8 @@ Now create a .env file in server and include:
     POSTGRES_PORT=5432
     SECRET_KEY=
 
+    DB_ENCRYPTION_KEY=
+
 
 ---
 

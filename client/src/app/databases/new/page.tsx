@@ -60,7 +60,7 @@ export default function NewDatabasePage() {
                 ...prev,
                 [name]: value,
                 port: defaultPorts[value] || 5432,
-                schema: value === 'postgresql' ? 'public' : '', // Set default schema for PostgreSQL
+                schema: value === 'postgresql' ? 'public' : value === 'mssql' ? 'dbo' : '', // Set default schema
                 mongodb_connection_type: value === 'mongodb' ? prev.mongodb_connection_type : 'standard',
             }));
         } else if (type === 'checkbox') {
@@ -341,7 +341,7 @@ export default function NewDatabasePage() {
                                     {errors.database && <p className="mt-1 text-sm text-red-600">{errors.database}</p>}
                                 </div>
 
-                                {formData.db_type === 'postgresql' && (
+                                {(formData.db_type === 'postgresql' || formData.db_type === 'mssql') && (
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">
                                             Schema
@@ -352,7 +352,7 @@ export default function NewDatabasePage() {
                                             value={formData.schema}
                                             onChange={handleChange}
                                             className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                            placeholder="public"
+                                            placeholder={formData.db_type === 'mssql' ? 'dbo' : 'public'}
                                         />
                                     </div>
                                 )}

@@ -72,11 +72,11 @@ export default function EditDatabasePage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    
+
     if (name === 'password') {
       setPasswordChanged(true);
     }
-    
+
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({ ...prev, [name]: checked }));
@@ -199,9 +199,9 @@ export default function EditDatabasePage() {
                   <span className="text-2xl">{getDbIcon(formData.db_type)}</span>
                   <span className="font-medium text-slate-900">
                     {formData.db_type === 'postgresql' ? 'PostgreSQL' :
-                     formData.db_type === 'mysql' ? 'MySQL' :
-                     formData.db_type === 'mongodb' ? 'MongoDB' :
-                     formData.db_type === 'mssql' ? 'SQL Server' : formData.db_type}
+                      formData.db_type === 'mysql' ? 'MySQL' :
+                        formData.db_type === 'mongodb' ? 'MongoDB' :
+                          formData.db_type === 'mssql' ? 'SQL Server' : formData.db_type}
                   </span>
                   <span className="text-sm text-slate-500">(cannot be changed)</span>
                 </div>
@@ -264,7 +264,7 @@ export default function EditDatabasePage() {
                   {errors.database && <p className="mt-1 text-sm text-red-600">{errors.database}</p>}
                 </div>
 
-                {formData.db_type === 'postgresql' && (
+                {(formData.db_type === 'postgresql' || formData.db_type === 'mssql') && (
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
                       Schema
@@ -275,7 +275,7 @@ export default function EditDatabasePage() {
                       value={formData.schema}
                       onChange={handleChange}
                       className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      placeholder="public"
+                      placeholder={formData.db_type === 'mssql' ? 'dbo' : 'public'}
                     />
                   </div>
                 )}

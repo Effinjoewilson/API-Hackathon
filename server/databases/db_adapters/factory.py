@@ -2,6 +2,7 @@ from typing import Dict, Any, List
 from .postgres import PostgreSQLAdapter
 from .mysql import MySQLAdapter
 from .mongodb import MongoDBAdapter
+from .mssql import MSSQLAdapter
 from .base import DatabaseAdapter
 
 
@@ -12,6 +13,7 @@ class DatabaseAdapterFactory:
         'postgresql': PostgreSQLAdapter,
         'mysql': MySQLAdapter,
         'mongodb': MongoDBAdapter,
+        'mssql': MSSQLAdapter,
     }
     
     @classmethod

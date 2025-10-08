@@ -1,8 +1,53 @@
 "use client";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
+
+interface Stats {
+  totalAPIs: number;
+  totalDatabases: number;
+  totalMappings: number;
+  successRate: number;
+}
 
 export default function Home() {
   const router = useRouter();
+  const [stats, setStats] = useState<Stats>({
+    totalAPIs: 0,
+    totalDatabases: 0,
+    totalMappings: 0,
+    successRate: 0,
+  });
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      // Fetch APIs count
+      const apisResponse = await apiFetch("/apis/endpoints/");
+      const apis = await apisResponse.json();
+      
+      // Fetch Databases count
+      const dbsResponse = await apiFetch("/databases/connections/");
+      const dbs = await dbsResponse.json();
+      
+      // Fetch Mappings count
+      const mappingsResponse = await apiFetch("/mappings/data-mappings/");
+      const mappings = await mappingsResponse.json();
+      
+      setStats({
+        totalAPIs: apis.length,
+        totalDatabases: dbs.length,
+        totalMappings: mappings.length,
+        successRate: 98.5, // You can calculate this from execution history
+      });
+    } catch (error) {
+      console.error("Failed to fetch stats:", error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -22,7 +67,7 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600">Total APIs</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">12</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{stats.totalAPIs}</p>
               </div>
               <div className="p-3 bg-indigo-50 rounded-lg">
                 <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,7 +81,7 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600">Databases</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">5</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{stats.totalDatabases}</p>
               </div>
               <div className="p-3 bg-green-50 rounded-lg">
                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,12 +94,12 @@ export default function Home() {
           <div className="card p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600">Active Mappings</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">28</p>
+                <p className="text-sm text-slate-600">Data Mappings</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{stats.totalMappings}</p>
               </div>
               <div className="p-3 bg-purple-50 rounded-lg">
                 <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
                 </svg>
               </div>
             </div>
@@ -64,7 +109,7 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600">Success Rate</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">98.5%</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{stats.successRate}%</p>
               </div>
               <div className="p-3 bg-emerald-50 rounded-lg">
                 <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,7 +164,7 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Visual Mapping */}
+          {/* Data Mapping */}
           <div className="card-hover p-6">
             <div className="flex items-center mb-4">
               <div className="p-2 bg-purple-100 rounded-lg">
@@ -127,13 +172,16 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold text-slate-900 ml-3">Data Mapping</h2>
+              <h2 className="text-xl font-semibold text-slate-900 ml-3">Data Mappings</h2>
             </div>
             <p className="text-slate-600 mb-4">
               Create visual mappings between API responses and database tables
             </p>
-            <button className="btn-primary w-full">
-              Create Mapping
+            <button
+              onClick={() => router.push("/mappings")}
+              className="btn-primary w-full"
+            >
+              Manage Mappings
             </button>
           </div>
         </div>
@@ -179,18 +227,18 @@ export default function Home() {
 
               <div className="p-4 flex items-center justify-between hover:bg-slate-50">
                 <div className="flex items-center">
-                  <div className="p-2 bg-yellow-100 rounded-lg">
-                    <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                   </div>
                   <div className="ml-4">
-                    <p className="font-medium text-slate-900">Rate limit updated for Weather API</p>
+                    <p className="font-medium text-slate-900">Product sync mapping executed</p>
                     <p className="text-sm text-slate-500">3 hours ago</p>
                   </div>
                 </div>
-                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-700">
-                  Config
+                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-purple-100 text-purple-700">
+                  Mapping
                 </span>
               </div>
             </div>

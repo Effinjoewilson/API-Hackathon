@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Home, Info, Bell, Settings, Database } from "lucide-react";
+import { LogOut, Home, Info, Bell, Settings, Database, Activity } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function Navbar() {
@@ -62,6 +62,10 @@ export default function Navbar() {
               <Link href="/databases" className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:text-indigo-600 hover:bg-slate-50 transition-colors">
                 <Database className="w-4 h-4 mr-2" />
                 Databases
+              </Link>
+              <Link href="/mappings" className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:text-indigo-600 hover:bg-slate-50 transition-colors">
+                <Activity className="w-4 h-4 mr-2" />
+                Mappings
               </Link>
             </div>
           </div>

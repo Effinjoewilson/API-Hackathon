@@ -410,9 +410,6 @@ export default function NewAPIPage() {
                     className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="application/json">JSON</option>
-                    <option value="application/x-www-form-urlencoded">Form Data</option>
-                    <option value="multipart/form-data">Multipart</option>
-                    <option value="application/xml">XML</option>
                   </select>
                 </div>
 

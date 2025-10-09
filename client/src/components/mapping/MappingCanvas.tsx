@@ -734,6 +734,13 @@ export default function MappingCanvas({
                 }
               }}
               mappedColumns={mappings.map(m => m.target_column)}
+              mappingValidations={mappings.reduce((acc, mapping) => {
+                const validation = getMappingValidation(mapping.source_path, mapping.target_column);
+                if (validation) {
+                  acc[mapping.target_column] = validation;
+                }
+                return acc;
+              }, {} as any)}
             />
           </div>
         </div>

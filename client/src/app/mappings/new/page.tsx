@@ -112,6 +112,29 @@ export default function NewMappingPage() {
   }, []);
 
   const handleSubmit = async () => {
+    // Validate all mappings before submitting
+    const invalidMappings = formData.field_mappings.filter(mapping => {
+      return mapping.validation && !mapping.validation.compatible;
+    });
+
+    const needsConversionMappings = formData.field_mappings.filter(mapping => {
+      return mapping.validation && mapping.validation.compatible && mapping.validation.conversion_needed;
+    });
+
+    if (invalidMappings.length > 0 || needsConversionMappings.length > 0) {
+      let errorMessage = '';
+      if (invalidMappings.length > 0) {
+        errorMessage += `${invalidMappings.length} invalid field mapping(s) found.\n`;
+      }
+      if (needsConversionMappings.length > 0) {
+        errorMessage += `${needsConversionMappings.length} mapping(s) need conversion.\n`;
+      }
+      errorMessage += '\nPlease add appropriate transformations or remove these mappings.';
+
+      alert(errorMessage);
+      return;
+    }
+
     setLoading(true);
     try {
       // Transform field_mappings to match backend expectations

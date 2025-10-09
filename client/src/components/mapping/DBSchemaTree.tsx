@@ -7,25 +7,26 @@ interface DBSchemaTreeProps {
   schema: any;
   onFieldDrop: (column: string) => void;
   mappedColumns: string[];
+  mappingValidations?: { [key: string]: { compatible: boolean; conversion_needed: boolean; warning?: string } };
 }
 
-export default function DBSchemaTree({ schema, onFieldDrop, mappedColumns }: DBSchemaTreeProps) {
+export default function DBSchemaTree({ schema, onFieldDrop, mappedColumns, mappingValidations }: DBSchemaTreeProps) {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [nearestColumn, setNearestColumn] = useState<string | null>(null);
 
   // Magnetic snap detection
   const handleDragOver = (e: React.DragEvent, column: string) => {
     e.preventDefault();
-    
+
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const distance = Math.abs((rect.top + rect.bottom) / 2 - e.clientY);
-    
+
     const el = e.currentTarget as HTMLElement;
 
     if (distance < 50) {
       setDragOver(column);
       setNearestColumn(column);
-      
+
       // Add visual feedback
       el.style.transform = 'scale(1.05)';
       el.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
@@ -76,13 +77,17 @@ export default function DBSchemaTree({ schema, onFieldDrop, mappedColumns }: DBS
 
   const renderColumn = (column: any) => {
     const isMapped = mappedColumns.includes(column.name);
+    const validation = mappingValidations?.[column.name];
+    const isValidMapping = isMapped && validation?.compatible && !validation?.conversion_needed;
     const isDragOver = dragOver === column.name;
 
     return (
       <div
         key={column.name}
         className={`p-2 rounded-lg transition-all duration-200 ${isDragOver ? 'bg-indigo-50 ring-2 ring-indigo-500 scale-105 shadow-lg' :
-            isMapped ? 'bg-green-50' : 'hover:bg-slate-50'
+          isValidMapping ? 'bg-green-50' :
+            isMapped ? 'bg-amber-50' :
+              'hover:bg-slate-50'
           }`}
         onDragOver={(e) => handleDragOver(e, column.name)}
         onDragLeave={handleDragLeave}
@@ -107,11 +112,21 @@ export default function DBSchemaTree({ schema, onFieldDrop, mappedColumns }: DBS
           </div>
         </div>
         {isMapped && (
-          <div className="mt-1 text-xs text-green-600 flex items-center">
-            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            Mapped
+          <div className={`mt-1 text-xs flex items-center ${isValidMapping ? 'text-green-600' : 'text-amber-600'
+            }`}>
+            {isValidMapping ? (
+              <>
+                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Mapped
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-3 h-3 mr-1" />
+                Invalid mapping
+              </>
+            )}
           </div>
         )}
       </div>

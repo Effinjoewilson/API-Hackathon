@@ -15,6 +15,47 @@ interface MappingCanvasProps {
   onMappingsChange: (mappings: any[]) => void;
 }
 
+interface DatabaseColumn {
+  name: string;
+  type: string;
+  nullable: boolean;
+  constraints: string[];
+}
+
+interface MongoDBField {
+  name: string;
+  type: string;
+  required?: boolean;
+  validation?: {
+    required?: boolean;
+    [key: string]: any;
+  };
+}
+
+interface DatabaseSchema {
+  columns?: DatabaseColumn[];  // For SQL databases
+  fields?: MongoDBField[];     // For MongoDB
+}
+
+const normalizeMongoDBType = (mongoType: string): string => {
+  const typeMap: { [key: string]: string } = {
+    'ObjectId': 'objectid',
+    'str': 'string',
+    'int': 'integer',
+    'float': 'float',
+    'double': 'float',
+    'bool': 'boolean',
+    'datetime': 'datetime',
+    'date': 'date',
+    'array': 'array',
+    'array[dict]': 'array',
+    'dict': 'object',
+    'object': 'object'
+  };
+
+  return typeMap[mongoType] || mongoType.toLowerCase();
+};
+
 export default function MappingCanvas({
   apiId,
   databaseId,
@@ -33,6 +74,7 @@ export default function MappingCanvas({
   const [history, setHistory] = useState<any[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [validationRules, setValidationRules] = useState<any>(null);
+  const [validationErrors, setValidationErrors] = useState<{ field: string; message: string }[]>([]);
 
   // Add auto-scroll support
   useEffect(() => {
@@ -155,6 +197,12 @@ export default function MappingCanvas({
       if (dbSchema.columns) {
         const column = dbSchema.columns.find((c: any) => c.name === targetColumn);
         targetType = column?.type || "string";
+      } else if (dbSchema.fields) {
+        // Handle MongoDB fields
+        const field = dbSchema.fields.find((f: any) => f.name === targetColumn);
+        if (field) {
+          targetType = normalizeMongoDBType(field.type);
+        }
       }
 
       const newMapping = {
@@ -334,6 +382,43 @@ export default function MappingCanvas({
       }
     }
 
+    // Add MongoDB-specific type handling
+    if (target === 'objectid') {
+      if (source === 'string') {
+        return {
+          compatible: true,
+          conversion_needed: false,
+          warning: 'Ensure string is a valid ObjectId format (24 hex characters)'
+        };
+      }
+    }
+
+    // Handle array[dict] type
+    if (target === 'array' || target.includes('array')) {
+      if (source === 'array' || source === 'object') {
+        return {
+          compatible: true,
+          conversion_needed: false
+        };
+      }
+      if (source === 'string') {
+        return {
+          compatible: true,
+          conversion_needed: true,
+          warning: 'Use json_parse to convert string to array'
+        };
+      }
+    }
+
+    // Handle MongoDB datetime
+    if (target === 'datetime' && source === 'string') {
+      return {
+        compatible: true,
+        conversion_needed: true,
+        warning: 'Use parse_datetime for MongoDB datetime conversion'
+      };
+    }
+
     // Special cases that need transformation
     const needsTransformation = [
       { src: 'string', tgt: ['int', 'integer', 'bigint', 'smallint'], warning: 'Use parse_int to convert string to integer' },
@@ -445,18 +530,64 @@ export default function MappingCanvas({
   }, [historyIndex, history]);
 
   const validateRequiredFields = () => {
-    const errors: string[] = [];
-    const requiredSourceFields = ["id", "email"];
-    requiredSourceFields.forEach(field => {
-      const isMapped = mappings.some(m =>
-        m.source_path.toLowerCase().includes(field.toLowerCase())
+    const errors: { field: string; message: string }[] = [];
+
+    // Handle SQL databases
+    if (dbSchema?.columns) {
+      const requiredColumns = dbSchema.columns.filter((col: DatabaseColumn) =>
+        !col.nullable ||
+        col.constraints?.includes('PRIMARY KEY') ||
+        col.constraints?.includes('NOT NULL')
       );
-      if (!isMapped) {
-        errors.push(`Required field "${field}" is not mapped`);
-      }
-    });
+
+      requiredColumns.forEach((column: DatabaseColumn) => {
+        const isMapped = mappings.some(m => m.target_column === column.name);
+        if (!isMapped) {
+          errors.push({
+            field: column.name,
+            message: `Required field "${column.name}" must be mapped`
+          });
+        }
+      });
+    }
+    // Handle MongoDB
+    else if (dbSchema?.fields) {
+      console.log("MongoDB fields:", dbSchema.fields);
+      // For MongoDB, check for fields that might be required based on validation rules
+      dbSchema.fields.forEach((field: any) => {
+        // Check if field has required validation
+        if (field.required || field.validation?.required) {
+          const isMapped = mappings.some(m => m.target_column === field.name);
+          if (!isMapped) {
+            errors.push({
+              field: field.name,
+              message: `Required field "${field.name}" must be mapped`
+            });
+          }
+        }
+
+        // Check for specific MongoDB field types that should be required
+        if (field.name === '_id' || field.name === 'id') {
+          const isMapped = mappings.some(m => m.target_column === field.name);
+          if (!isMapped) {
+            errors.push({
+              field: field.name,
+              message: `Primary key field "${field.name}" must be mapped`
+            });
+          }
+        }
+      });
+    }
+
     return errors;
   };
+
+
+  // Update validation whenever mappings change
+  useEffect(() => {
+    const errors = validateRequiredFields();
+    setValidationErrors(errors);
+  }, [mappings, dbSchema]);
 
   if (loading) {
     return (
@@ -616,6 +747,7 @@ export default function MappingCanvas({
           }))}
           apiSample={apiSample}
           validations={typeValidations}
+          validationErrors={validationErrors}
         />
       )}
     </div>

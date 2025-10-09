@@ -5,9 +5,15 @@ interface MappingSummaryProps {
   mappings: any[];
   apiSample: any;
   validations: any;
+  validationErrors?: {field: string; message: string}[];
 }
 
-export default function MappingSummary({ mappings, apiSample, validations }: MappingSummaryProps) {
+export default function MappingSummary({ 
+  mappings, 
+  apiSample, 
+  validations,
+  validationErrors = [] 
+}: MappingSummaryProps) {
   const getFieldValue = (path: string) => {
     const parts = path.split('.');
     let value = apiSample;
@@ -203,6 +209,24 @@ export default function MappingSummary({ mappings, apiSample, validations }: Map
           )}
         </div>
       </div>
+
+      {/* Required Fields Validation */}
+      {validationErrors.length > 0 && (
+        <div className="mt-4 p-4 bg-red-50 rounded-lg">
+          <h4 className="text-sm font-semibold text-red-700 mb-2">Required Fields Missing</h4>
+          <div className="space-y-2">
+            {validationErrors.map((error, idx) => (
+              <div key={idx} className="flex items-start text-sm">
+                <XCircle className="w-4 h-4 text-red-600 mr-2 mt-0.5 flex-shrink-0" />
+                <div>
+                  <span className="font-medium text-red-700">{error.field}:</span>
+                  <span className="ml-2 text-red-600">{error.message}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

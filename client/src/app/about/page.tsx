@@ -41,7 +41,7 @@ export default function About() {
                 </div>
                 <div className="ml-4">
                   <h4 className="font-medium text-slate-900">Multi-Database Support</h4>
-                  <p className="text-sm text-slate-600 mt-1">Connect to PostgreSQL, MySQL, MongoDB, and more with secure credential management</p>
+                  <p className="text-sm text-slate-600 mt-1">Connect to PostgreSQL, MySQL, MSSQL,  MongoDB, and more with secure credential management</p>
                 </div>
               </div>
 
@@ -75,16 +75,6 @@ export default function About() {
               Whether you're building microservices, integrating third-party APIs, or managing complex data pipelines, 
               EndpointX provides the tools you need to work efficiently and confidently.
             </p>
-
-            <div className="bg-indigo-50 rounded-lg p-6 mt-8">
-              <h4 className="font-semibold text-indigo-900 mb-2">Get Started Today</h4>
-              <p className="text-indigo-700 text-sm">
-                Join thousands of developers who are already streamlining their API workflows with EndpointX.
-              </p>
-              <button className="btn-primary mt-4">
-                Start Building
-              </button>
-            </div>
           </div>
         </div>
       </div>

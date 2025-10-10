@@ -18,6 +18,7 @@ from .serializers import (
 from .services.mapping_engine import MappingEngine
 from .services.field_matcher import FieldMatcher
 from .services.type_validator import TypeValidator
+from activities.utils import log_activity
 
 
 class DataMappingViewSet(viewsets.ModelViewSet):
@@ -275,9 +276,39 @@ class DataMappingViewSet(viewsets.ModelViewSet):
         from .services.validation_rules import export_validation_rules
         return Response(export_validation_rules())
 
+    def perform_create(self, serializer):
+        mapping = serializer.save(owner=self.request.user)
+        log_activity(
+            activity_type='mapping_execution',
+            status='success',
+            title=f'Created new mapping: {mapping.name}',
+            details=f'Mapping between {mapping.api_endpoint.name} and {mapping.database.name}.{mapping.target_table}'
+        )
+
+    def perform_update(self, serializer):
+        mapping = serializer.save()
+        log_activity(
+            activity_type='mapping_execution',
+            status='success',
+            title=f'Updated mapping: {mapping.name}',
+            details=f'Modified mapping configuration between {mapping.api_endpoint.name} and {mapping.database.name}.{mapping.target_table}'
+        )
+
+    def perform_destroy(self, instance):
+        name = instance.name
+        api_name = instance.api_endpoint.name
+        db_name = instance.database.name
+        table = instance.target_table
+        instance.delete()
+        log_activity(
+            activity_type='mapping_execution',
+            status='success',
+            title=f'Deleted mapping: {name}',
+            details=f'Removed mapping between {api_name} and {db_name}.{table}'
+        )
+
 
 class TransformationTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = TransformationTemplate.objects.all()
     serializer_class = TransformationTemplateSerializer
     permission_classes = [IsAuthenticated]
-            

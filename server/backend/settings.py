@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'apis',
     'databases',
     'mappings',
+    'activities',
 ]
 
 MIDDLEWARE = [

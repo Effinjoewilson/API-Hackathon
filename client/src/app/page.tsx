@@ -2,12 +2,22 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { Activity, ArrowUpDown, Database, ChevronRight } from "lucide-react";
 
 interface Stats {
   totalAPIs: number;
   totalDatabases: number;
   totalMappings: number;
-  successRate: number;
+  databaseHealth: number;
+}
+
+interface Activity {
+  id: number;
+  type: 'api_test' | 'mapping_execution' | 'database_test';
+  status: 'success' | 'failed' | 'partial';
+  title: string;
+  timestamp: string;
+  details?: string;
 }
 
 export default function Home() {
@@ -16,11 +26,14 @@ export default function Home() {
     totalAPIs: 0,
     totalDatabases: 0,
     totalMappings: 0,
-    successRate: 0,
+    databaseHealth: 0,
   });
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [showAllActivities, setShowAllActivities] = useState(false);
 
   useEffect(() => {
     fetchStats();
+    fetchActivities();
   }, []);
 
   const fetchStats = async () => {
@@ -28,23 +41,68 @@ export default function Home() {
       // Fetch APIs count
       const apisResponse = await apiFetch("/apis/endpoints/");
       const apis = await apisResponse.json();
-      
-      // Fetch Databases count
+
+      // Fetch Databases count and calculate health
       const dbsResponse = await apiFetch("/databases/connections/");
       const dbs = await dbsResponse.json();
-      
+
+      // Calculate database health based on connection status
+      const activeAndFailedConnections = dbs.filter((db: any) => 
+        db.connection_status === 'active' || db.connection_status === 'failed'
+      );
+      const activeConnections = dbs.filter((db: any) => 
+        db.connection_status === 'active'
+      );
+
+      // Calculate health percentage
+      const healthPercentage = activeAndFailedConnections.length > 0
+        ? (activeConnections.length / activeAndFailedConnections.length) * 100
+        : 100; // If no checked connections, assume 100%
+
       // Fetch Mappings count
       const mappingsResponse = await apiFetch("/mappings/data-mappings/");
       const mappings = await mappingsResponse.json();
-      
+
       setStats({
         totalAPIs: apis.length,
         totalDatabases: dbs.length,
         totalMappings: mappings.length,
-        successRate: 98.5, // You can calculate this from execution history
+        databaseHealth: Math.round(healthPercentage),
       });
     } catch (error) {
       console.error("Failed to fetch stats:", error);
+    }
+  };
+
+  const fetchActivities = async () => {
+    try {
+      const response = await apiFetch('/activities/recent/');
+      const data = await response.json();
+      setActivities(data);
+    } catch (error) {
+      console.error('Failed to fetch activities:', error);
+    }
+  };
+
+  const getActivityIcon = (type: string, status: string) => {
+    if (type === 'api_test') {
+      return (
+        <div className={`p-2 rounded-lg ${status === 'success' ? 'bg-green-100' : 'bg-red-100'}`}>
+          <Activity className={`w-4 h-4 ${status === 'success' ? 'text-green-600' : 'text-red-600'}`} />
+        </div>
+      );
+    } else if (type === 'mapping_execution') {
+      return (
+        <div className="p-2 bg-purple-100 rounded-lg">
+          <ArrowUpDown className="w-4 h-4 text-purple-600" />
+        </div>
+      );
+    } else {
+      return (
+        <div className="p-2 bg-blue-100 rounded-lg">
+          <Database className="w-4 h-4 text-blue-600" />
+        </div>
+      );
     }
   };
 
@@ -108,8 +166,8 @@ export default function Home() {
           <div className="card p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600">Success Rate</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">{stats.successRate}%</p>
+                <p className="text-sm text-slate-600">Database Health</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{stats.databaseHealth}%</p>
               </div>
               <div className="p-3 bg-emerald-50 rounded-lg">
                 <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -188,59 +246,48 @@ export default function Home() {
 
         {/* Recent Activity */}
         <div className="mt-8">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">Recent Activity</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-slate-900">Recent Activity</h3>
+            <button
+              onClick={() => setShowAllActivities(!showAllActivities)}
+              className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center"
+            >
+              {showAllActivities ? 'Show Less' : 'View All'}
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </button>
+          </div>
+
           <div className="card">
             <div className="divide-y divide-slate-100">
-              <div className="p-4 flex items-center justify-between hover:bg-slate-50">
-                <div className="flex items-center">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+              {activities
+                .slice(0, showAllActivities ? 10 : 3)
+                .map((activity) => (
+                  <div key={activity.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
+                    <div className="flex items-center">
+                      {getActivityIcon(activity.type, activity.status)}
+                      <div className="ml-4">
+                        <p className="font-medium text-slate-900">{activity.title}</p>
+                        <p className="text-sm text-slate-500">
+                          {new Date(activity.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-xs font-medium px-2.5 py-1 rounded-full
+                        ${activity.status === 'success' ? 'bg-green-100 text-green-700' :
+                          activity.status === 'failed' ? 'bg-red-100 text-red-700' :
+                            'bg-yellow-100 text-yellow-700'}`}
+                    >
+                      {activity.status.charAt(0).toUpperCase() + activity.status.slice(1)}
+                    </span>
                   </div>
-                  <div className="ml-4">
-                    <p className="font-medium text-slate-900">User API mapped to customers table</p>
-                    <p className="text-sm text-slate-500">2 minutes ago</p>
-                  </div>
-                </div>
-                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-green-100 text-green-700">
-                  Success
-                </span>
-              </div>
+                ))}
 
-              <div className="p-4 flex items-center justify-between hover:bg-slate-50">
-                <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <p className="font-medium text-slate-900">New PostgreSQL database added</p>
-                    <p className="text-sm text-slate-500">1 hour ago</p>
-                  </div>
+              {activities.length === 0 && (
+                <div className="p-4 text-center text-slate-500">
+                  No recent activity
                 </div>
-                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">
-                  Database
-                </span>
-              </div>
-
-              <div className="p-4 flex items-center justify-between hover:bg-slate-50">
-                <div className="flex items-center">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <p className="font-medium text-slate-900">Product sync mapping executed</p>
-                    <p className="text-sm text-slate-500">3 hours ago</p>
-                  </div>
-                </div>
-                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-purple-100 text-purple-700">
-                  Mapping
-                </span>
-              </div>
+              )}
             </div>
           </div>
         </div>

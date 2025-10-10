@@ -13,6 +13,7 @@ from .serializers import (
     DatabaseSchemaSerializer
 )
 from .db_adapters.factory import DatabaseAdapterFactory
+from activities.utils import log_activity
 
 
 class DatabaseConnectionViewSet(viewsets.ModelViewSet):
@@ -172,3 +173,33 @@ class DatabaseConnectionViewSet(viewsets.ModelViewSet):
             {'value': 'mongodb', 'label': 'MongoDB'},
             {'value': 'mssql', 'label': 'SQL Server'},
         ])
+    
+    def perform_create(self, serializer):
+        db = serializer.save(owner=self.request.user)
+        log_activity(
+            activity_type='database_test',
+            status='success',
+            title=f'Added new database: {db.name}',
+            details=f'Connected to {db.db_type} database at {db.host}:{db.port}/{db.database}'
+        )
+
+    def perform_update(self, serializer):
+        db = serializer.save()
+        log_activity(
+            activity_type='database_test',
+            status='success',
+            title=f'Updated database: {db.name}',
+            details=f'Modified {db.db_type} database connection at {db.host}:{db.port}/{db.database}'
+        )
+
+    def perform_destroy(self, instance):
+        name = instance.name
+        db_type = instance.db_type
+        host = instance.host
+        instance.delete()
+        log_activity(
+            activity_type='database_test',
+            status='success',
+            title=f'Deleted database: {name}',
+            details=f'Removed {db_type} database connection at {host}'
+        )

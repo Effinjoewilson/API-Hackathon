@@ -7,6 +7,7 @@ import requests
 import time
 from .models import APIEndpoint, APITestLog
 from .serializers import APIEndpointSerializer, APITestLogSerializer, APITestRequestSerializer
+from activities.utils import log_activity
 
 class APIEndpointViewSet(viewsets.ModelViewSet):
     serializer_class = APIEndpointSerializer
@@ -214,3 +215,33 @@ class APIEndpointViewSet(viewsets.ModelViewSet):
             if endpoint.tags:
                 all_tags.update(endpoint.tags)
         return Response(list(all_tags))
+    
+    def perform_create(self, serializer):
+        api = serializer.save(owner=self.request.user)
+        log_activity(
+            activity_type='api_test',
+            status='success',
+            title=f'Created new API: {api.name}',
+            details=f'API endpoint created at {api.base_url}{api.endpoint_path}'
+        )
+    
+    def perform_update(self, serializer):
+        api = serializer.save()
+        log_activity(
+            activity_type='api_test',
+            status='success',
+            title=f'Updated API: {api.name}',
+            details=f'Modified configuration for API endpoint at {api.base_url}{api.endpoint_path}'
+        )
+
+    def perform_destroy(self, instance):
+        name = instance.name
+        base_url = instance.base_url
+        path = instance.endpoint_path
+        instance.delete()
+        log_activity(
+            activity_type='api_test',
+            status='success',
+            title=f'Deleted API: {name}',
+            details=f'Removed API endpoint at {base_url}{path}'
+        )

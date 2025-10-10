@@ -136,6 +136,40 @@ export default function MappingCanvas({
     onMappingsChange(mappings);
   }, [mappings]);
 
+  // Add this useEffect after the existing useEffects in MappingCanvas.tsx
+  useEffect(() => {
+    if (initialMappings && initialMappings.length > 0) {
+      const processedInitialMappings = initialMappings.map(mapping => {
+        if (mapping.validation) return mapping;
+
+        const transformedType = getTransformedType(
+          mapping.source_type || "string",
+          mapping.transformations || []
+        );
+
+        const compatibility = checkTypeCompatibility(
+          transformedType,
+          mapping.target_type || "string"
+        );
+
+        return {
+          ...mapping,
+          validation: {
+            source_type: mapping.source_type || "string",
+            transformed_type: transformedType,
+            target_type: mapping.target_type || "string",
+            compatible: compatibility.compatible,
+            conversion_needed: compatibility.conversion_needed,
+            warning: compatibility.warning
+          }
+        };
+      });
+
+      setMappings(processedInitialMappings);
+    }
+  }, []);
+
+
   const fetchPreviewData = async () => {
     setLoading(true);
     try {
@@ -170,18 +204,134 @@ export default function MappingCanvas({
     }
   };
 
+  const getAutoTransformations = (sourceType: string, targetType: string): string[] => {
+    const transforms: string[] = [];
+    const source = sourceType.toLowerCase();
+    const target = targetType.toLowerCase();
+
+    // String to number conversions
+    if (source === 'string') {
+      if (target.includes('int') || target.includes('integer')) {
+        transforms.push('parse_int');
+      } else if (target.includes('float') || target.includes('decimal') || target.includes('numeric')) {
+        transforms.push('parse_float');
+      } else if (target.includes('bool') || target.includes('boolean')) {
+        transforms.push('parse_bool');
+      } else if (target.includes('date') && !target.includes('datetime')) {
+        transforms.push('parse_date');
+      } else if (target.includes('datetime') || target.includes('timestamp')) {
+        transforms.push('parse_datetime');
+      }
+    }
+
+    // Number to string conversions
+    if ((source === 'number' || source === 'integer' || source === 'float') &&
+      (target.includes('varchar') || target.includes('text') || target.includes('char'))) {
+      transforms.push('to_string');
+    }
+
+    // Object to string (JSON)
+    if (source === 'object' && (target.includes('text') || target.includes('varchar'))) {
+      transforms.push('json_stringify');
+    }
+
+    // Boolean to bit
+    if (source === 'boolean' && target.includes('bit')) {
+      transforms.push('boolean_to_bit');
+    }
+
+    return transforms;
+  };
+
   const handleAutoMap = () => {
-    const newMappings = suggestedMappings
+    const newMappings: any[] = [];
+    const skippedMappings: any[] = [];
+
+    suggestedMappings
       .filter(s => s.confidence > 80)
-      .map(s => ({
-        source_path: s.source_path,
-        target_column: s.target_column,
-        transformations: [],
-        default_value: null,
-        skip_if_null: false
-      }));
+      .forEach(suggestion => {
+        const sampleValue = getValueFromPath(apiSample, suggestion.source_path);
+        const sourceType = typeof sampleValue;
+
+        let targetType = "string";
+        let isRequired = false;
+
+        if (dbSchema.columns) {
+          const column = dbSchema.columns.find((c: any) => c.name === suggestion.target_column);
+          if (column) {
+            targetType = column.type;
+            isRequired = !column.nullable || column.constraints?.includes('NOT NULL');
+          }
+        } else if (dbSchema.fields) {
+          const field = dbSchema.fields.find((f: any) => f.name === suggestion.target_column);
+          if (field) {
+            targetType = normalizeMongoDBType(field.type);
+            isRequired = field.required || field.name === '_id';
+          }
+        }
+
+        // Check if types are compatible
+        const compatibility = checkTypeCompatibility(sourceType, targetType);
+
+        // If not directly compatible, try to find transformations
+        let transformations: string[] = [];
+        if (!compatibility.compatible || compatibility.conversion_needed) {
+          transformations = getAutoTransformations(sourceType, targetType);
+
+          // Re-check compatibility with transformations
+          const transformedType = getTransformedType(sourceType, transformations);
+          const newCompatibility = checkTypeCompatibility(transformedType, targetType);
+
+          if (!newCompatibility.compatible) {
+            skippedMappings.push({
+              ...suggestion,
+              reason: `Cannot convert ${sourceType} to ${targetType} even with transformations`
+            });
+            return;
+          }
+        }
+
+        const mapping = {
+          source_path: suggestion.source_path,
+          target_column: suggestion.target_column,
+          source_type: sourceType,
+          target_type: targetType,
+          sampleValue: sampleValue,
+          transformations: transformations,
+          default_value: isRequired && (sampleValue === null || sampleValue === undefined) ? '' : null,
+          skip_if_null: false,
+          is_required: isRequired
+        };
+
+        const validatedMapping = updateMappingValidation(mapping);
+        newMappings.push(validatedMapping);
+      });
 
     setMappings(newMappings);
+    addToHistory(newMappings);
+
+    // Provide user feedback
+    if (newMappings.length === 0) {
+      alert("No valid auto-mappings found. Please create mappings manually.");
+    } else {
+      let message = `Successfully created ${newMappings.length} mappings.`;
+
+      // Count how many need attention
+      const needsAttention = newMappings.filter(m =>
+        m.validation?.conversion_needed || m.validation?.warning
+      ).length;
+
+      if (needsAttention > 0) {
+        message += `\n\n${needsAttention} mappings need review (type conversions applied).`;
+      }
+
+      if (skippedMappings.length > 0) {
+        message += `\n\n${skippedMappings.length} suggested mappings were skipped due to incompatible types.`;
+        console.warn('Skipped mappings:', skippedMappings);
+      }
+
+      console.log(message);
+    }
   };
 
   const handleCreateMapping = (sourcePath: string, targetColumn: string) => {

@@ -42,6 +42,8 @@ Now create a .env file in server and include:
 
     DB_ENCRYPTION_KEY=
 
+    OPENROUTER_API_KEY=
+
 
 ---
 
